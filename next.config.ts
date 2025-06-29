@@ -11,12 +11,6 @@ const nextConfig: NextConfig = {
     
     return config;
   },
-  experimental: {
-    // Exclude backend from build
-    outputFileTracingExcludes: {
-      '*': ['./backend/**/*'],
-    },
-  },
 };
 
 export default nextConfig;
