@@ -6,7 +6,7 @@ const nextConfig: NextConfig = {
     // Exclude backend directory from webpack processing
     config.watchOptions = {
       ...config.watchOptions,
-      ignored: [...(config.watchOptions?.ignored || []), '**/backend/**'],
+      ignored: ['**/backend/**'],
     };
     
     return config;
