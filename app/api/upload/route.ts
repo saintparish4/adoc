@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { writeFile, mkdir } from 'fs/promises';
 import { join } from 'path';
 import { existsSync } from 'fs';
+import { PrismaClient } from '@prisma/client';
+import { createAuditLog } from '../../../lib/audit';
+
+const prisma = new PrismaClient();
 
 export async function POST(request: NextRequest) {
   try {
@@ -62,9 +66,38 @@ export async function POST(request: NextRequest) {
     const buffer = Buffer.from(bytes);
     await writeFile(filePath, buffer);
 
+    // Generate unique token
+    const token = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+    
+    // Set expiration (24 hours from now)
+    const expiresAt = new Date();
+    expiresAt.setHours(expiresAt.getHours() + 24);
+
+    // Save to database
+    const dbFile = await prisma.file.create({
+      data: {
+        token,
+        path: fileName,
+        expiresAt,
+      },
+    });
+
     // Generate one-time link
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
-    const downloadLink = `${baseUrl}/api/download/${fileName}`;
+    const downloadLink = `${baseUrl}/download/${token}`;
+
+    // Log the upload
+    const ipAddress = request.headers.get('x-forwarded-for') || 
+                     request.headers.get('x-real-ip') || 
+                     'unknown';
+    const userAgent = request.headers.get('user-agent') || 'unknown';
+
+    await createAuditLog({
+      fileId: dbFile.id,
+      ipAddress,
+      userAgent,
+      action: 'upload',
+    });
 
     return NextResponse.json({ 
       link: downloadLink,
